@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>WebAuthn & Passkey Authentication Sandbox</title>
-  <meta name="description" content="Interactive demo and testing suite for WebAuthn and Passkey authentication protocol flows.">
+  <title>WebAuthn Level 3 Protocol Lab & Passkeys</title>
+  <meta name="description" content="Interactive demo and testing suite for WebAuthn Level 3 (W3C Recommendation) and Passkey protocol flows.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Inter:wght@400;500;600;700&family=Outfit:wght@500;600;700;800&display=swap" rel="stylesheet">
@@ -30,14 +30,17 @@
           </svg>
         </div>
         <div>
-          <h1>WebAuthn Protocol Lab</h1>
-          <p class="subtitle">FIDO2 & Passkey Passwordless Authentication Suite</p>
+          <div style="display: flex; align-items: center; gap: 0.5rem;">
+            <h1>WebAuthn Level 3 Lab</h1>
+            <span class="l3-badge">W3C L3 Compliant</span>
+          </div>
+          <p class="subtitle">FIDO2, Passkeys & Advanced Authenticator Capabilities</p>
         </div>
       </div>
 
       <div class="system-status">
         <div class="status-pill" id="webauthn-support">
-          <span class="status-dot warning"></span> Checking WebAuthn Support...
+          <span class="status-dot warning"></span> Checking WebAuthn L3 Support...
         </div>
         <div class="status-pill" id="autofill-support">
           <span class="status-dot warning"></span> Checking Passkey Autofill...
@@ -57,7 +60,11 @@
       </button>
       <button class="nav-btn" data-tab="inspector-tab">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
-        Protocol Inspector
+        Protocol Inspector (L3)
+      </button>
+      <button class="nav-btn" data-tab="capabilities-tab">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+        L3 Capabilities
       </button>
     </nav>
 
@@ -95,11 +102,24 @@
                       placeholder="e.g. alex@example.com" 
                       autocomplete="username webauthn"
                     />
-                    <span class="input-hint">Enter your username, or use one-click Passkey login below</span>
+                    <span class="input-hint">Enter username, or use 1-Click Passkey login below</span>
                   </div>
                 </div>
 
-                <div class="action-buttons">
+                <!-- L3 Advanced Options Accordion -->
+                <details class="l3-config-box">
+                  <summary>⚙️ WebAuthn L3 Ceremony Options</summary>
+                  <div class="form-group mt-2">
+                    <label>User Verification Preference</label>
+                    <select id="login-uv" class="select-input">
+                      <option value="preferred" selected>preferred (Default)</option>
+                      <option value="required">required (Strict Biometric/PIN)</option>
+                      <option value="discouraged">discouraged</option>
+                    </select>
+                  </div>
+                </details>
+
+                <div class="action-buttons mt-4">
                   <button type="submit" class="btn btn-primary btn-block" id="btn-submit-login">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a5 5 0 0 0-5 5v3H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8a2 2 0 0 0-2-2h-1V7a5 5 0 0 0-5-5zM9 7a3 3 0 0 1 6 0v3H9V7z"/></svg>
                     Sign In with Passkey
@@ -123,17 +143,38 @@
                   <input type="text" id="reg-devicename" placeholder="e.g. MacBook Touch ID, YubiKey 5C" />
                 </div>
 
-                <div class="action-buttons">
+                <!-- L3 Advanced Options Accordion -->
+                <details class="l3-config-box">
+                  <summary>⚙️ WebAuthn L3 Authenticator Selection</summary>
+                  <div class="form-group mt-2">
+                    <label>Authenticator Attachment</label>
+                    <select id="reg-attachment" class="select-input">
+                      <option value="" selected>Any (Platform or Cross-Platform)</option>
+                      <option value="platform">Platform (Touch ID, Face ID, Windows Hello)</option>
+                      <option value="cross-platform">Cross-Platform (Security Keys, YubiKey, Hybrid QR)</option>
+                    </select>
+                  </div>
+                  <div class="form-group">
+                    <label>User Verification Preference</label>
+                    <select id="reg-uv" class="select-input">
+                      <option value="preferred" selected>preferred (Default)</option>
+                      <option value="required">required (Strict Biometrics/PIN)</option>
+                      <option value="discouraged">discouraged</option>
+                    </select>
+                  </div>
+                </details>
+
+                <div class="action-buttons mt-4">
                   <button type="submit" class="btn btn-accent btn-block" id="btn-submit-register">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg>
-                    Register & Create Passkey
+                    Register & Create Passkey (L3)
                   </button>
                 </div>
               </form>
             </div>
           </div>
 
-          <!-- Right Card: Quick Explainer & Session Card -->
+          <!-- Right Card: Session Card & L3 Highlights -->
           <div class="card glass-card">
             <div id="session-inactive-view">
               <div class="info-hero">
@@ -143,22 +184,22 @@
                     <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
                   </svg>
                 </div>
-                <h3>Hardware-Grade Security</h3>
-                <p>WebAuthn uses standard asymmetric cryptography (`ES256` or `RS256`). Your private key never leaves your secure enclave (Touch ID, Face ID, YubiKey, Windows Hello).</p>
+                <h3>WebAuthn Level 3 Specs</h3>
+                <p>Fully compliant with W3C WebAuthn Level 3 Recommendation. Supports multi-device synced Passkeys, Backup Eligibility (BE), and Backup State (BS).</p>
               </div>
 
               <div class="feature-list">
                 <div class="feature-item">
                   <div class="feature-icon text-cyan">✓</div>
-                  <div><strong>Phishing-Resistant:</strong> Bound strictly to `localhost` origin.</div>
+                  <div><strong>Backup State Tracking (BE/BS):</strong> Detects whether passkey is synced across devices.</div>
                 </div>
                 <div class="feature-item">
                   <div class="feature-icon text-violet">✓</div>
-                  <div><strong>No Passwords:</strong> Credentials cannot be leaked or replayed.</div>
+                  <div><strong>Client Capabilities API:</strong> Queries browser Level 3 features (`getClientCapabilities`).</div>
                 </div>
                 <div class="feature-item">
                   <div class="feature-icon text-emerald">✓</div>
-                  <div><strong>Counter Anti-Replay:</strong> Built-in signature counter tracks usage.</div>
+                  <div><strong>`credProps` Extension:</strong> Verifies resident key (passkey) creation.</div>
                 </div>
               </div>
             </div>
@@ -168,7 +209,7 @@
                 <div class="avatar" id="user-avatar">A</div>
                 <div>
                   <h3 id="user-display-name">Username</h3>
-                  <span class="user-status-tag">Authenticated Session</span>
+                  <span class="user-status-tag">L3 Authenticated Session</span>
                 </div>
               </div>
 
@@ -198,8 +239,8 @@
         <div class="card glass-card">
           <div class="card-header flex-between">
             <div>
-              <h2>Registered Passkeys & Authenticators</h2>
-              <p class="subtitle">View public keys, signature counters, and transports registered on the server.</p>
+              <h2>Registered Passkeys & Authenticators (L3)</h2>
+              <p class="subtitle">View device sync status, backup eligibility (BE), signature counters, and transports.</p>
             </div>
             <button class="btn btn-sm btn-accent" onclick="showAddPasskeyModal()">
               + Add Passkey to Account
@@ -208,7 +249,6 @@
 
           <div class="card-body">
             <div id="passkeys-list" class="credentials-grid">
-              <!-- Populated via JS -->
               <div class="empty-state">
                 <p>No passkeys registered yet. Sign in or create an account to test.</p>
               </div>
@@ -222,32 +262,30 @@
         <div class="card glass-card mb-4">
           <div class="card-header flex-between">
             <div>
-              <h2>Live WebAuthn Ceremony Inspector</h2>
-              <p class="subtitle">Inspect exact JSON payloads, base64url nonces, decoded clientDataJSON, and authenticatorData.</p>
+              <h2>WebAuthn L3 Ceremony Inspector</h2>
+              <p class="subtitle">Inspect exact L3 JSON options, clientDataJSON, authenticatorData flags (UP, UV, BE, BS), and credProps.</p>
             </div>
             <button class="btn btn-sm btn-secondary" onclick="clearInspectorLogs()">Clear Inspector</button>
           </div>
 
           <div class="card-body">
             <div class="ceremony-stepper" id="ceremony-stepper">
-              <div class="step-badge pending" id="step-1-badge">1. RP Options Request</div>
+              <div class="step-badge pending" id="step-1-badge">1. RP Options (L3)</div>
               <div class="step-line"></div>
-              <div class="step-badge pending" id="step-2-badge">2. Browser & Authenticator</div>
+              <div class="step-badge pending" id="step-2-badge">2. Browser Response</div>
               <div class="step-line"></div>
-              <div class="step-badge pending" id="step-3-badge">3. Server Signature Verification</div>
+              <div class="step-badge pending" id="step-3-badge">3. Server Verification</div>
             </div>
 
             <div class="inspector-grid">
-              <!-- Left Column: Request Options -->
               <div class="inspector-box">
                 <div class="box-title">
-                  <span>Step 1: Server Options (`publicKey`)</span>
+                  <span>Step 1: Server Options (`publicKeyCredentialOptions`)</span>
                   <button class="copy-btn" onclick="copyCode('json-options')">Copy</button>
                 </div>
                 <pre class="code-block" id="json-options"><code>// Trigger a WebAuthn ceremony to view server options payload...</code></pre>
               </div>
 
-              <!-- Right Column: Authenticator Response -->
               <div class="inspector-box">
                 <div class="box-title">
                   <span>Step 2: Authenticator Credential Response</span>
@@ -257,15 +295,29 @@
               </div>
             </div>
 
-            <!-- Detailed Cryptographic Decoded Analysis -->
             <div class="inspector-box mt-4">
               <div class="box-title">
-                <span>Step 3: Decoded Protocol Payloads (`clientDataJSON` & `authenticatorData`)</span>
+                <span>Step 3: Decoded L3 Payloads & Bit Flag Analysis (UP, UV, BE, BS)</span>
                 <button class="copy-btn" onclick="copyCode('json-decoded')">Copy</button>
               </div>
-              <pre class="code-block" id="json-decoded"><code>// Decoded breakdown of clientDataJSON (Origin, Challenge) and authData flags (UP, UV)...</code></pre>
+              <pre class="code-block" id="json-decoded"><code>// Decoded breakdown of clientDataJSON, authData L3 bit flags (BE, BS), and credProps extension...</code></pre>
             </div>
 
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 4: WEBAUTHN L3 CLIENT CAPABILITIES -->
+      <section id="capabilities-tab" class="tab-pane">
+        <div class="card glass-card">
+          <div class="card-header">
+            <h2>WebAuthn Level 3 Client Capabilities</h2>
+            <p class="subtitle">Querying browser API: `PublicKeyCredential.getClientCapabilities()`</p>
+          </div>
+          <div class="card-body">
+            <div id="capabilities-grid" class="capabilities-grid">
+              <div class="empty-state">Querying client capabilities...</div>
+            </div>
           </div>
         </div>
       </section>
@@ -274,14 +326,13 @@
 
     <!-- Footer Controls -->
     <footer class="app-footer">
-      <div>WebAuthn Test App &bull; Running on Node Express RP</div>
+      <div>WebAuthn Level 3 Protocol Suite &bull; Relying Party Server</div>
       <div>
         <button class="btn-link text-danger" onclick="resetDatabase()">Reset Server DB</button>
       </div>
     </footer>
   </div>
 
-  <!-- Load SimpleWebAuthn Browser UMD Bundle -->
   <script src="/node_modules/@simplewebauthn/browser/dist/bundle/index.umd.min.js"></script>
   <script src="app.js"></script>
 </body>

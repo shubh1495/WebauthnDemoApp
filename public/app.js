@@ -1,4 +1,4 @@
-// WebAuthn Front-End Logic
+// WebAuthn Level 3 Front-End Logic
 let currentUser = null;
 
 document.addEventListener('DOMContentLoaded', async () => {
@@ -6,17 +6,18 @@ document.addEventListener('DOMContentLoaded', async () => {
   setupTabNavigation();
   await checkActiveSession();
   setupPasskeyAutofill();
+  loadClientCapabilities();
 });
 
 // -------------------------------------------------------------
-// 1. FEATURE DETECTION & SUPPORT CHECKS
+// 1. FEATURE DETECTION & L3 CAPABILITIES
 // -------------------------------------------------------------
 async function initWebAuthnSupportCheck() {
   const webauthnPill = document.getElementById('webauthn-support');
   const autofillPill = document.getElementById('autofill-support');
 
   if (window.PublicKeyCredential) {
-    webauthnPill.innerHTML = `<span class="status-dot active"></span> WebAuthn Supported`;
+    webauthnPill.innerHTML = `<span class="status-dot active"></span> WebAuthn L3 Ready`;
   } else {
     webauthnPill.innerHTML = `<span class="status-dot error"></span> WebAuthn Unsupported`;
     showAlert('WebAuthn is not supported in this browser environment.', 'error');
@@ -26,7 +27,7 @@ async function initWebAuthnSupportCheck() {
     try {
       const isCMA = await PublicKeyCredential.isConditionalMediationAvailable();
       if (isCMA) {
-        autofillPill.innerHTML = `<span class="status-dot active"></span> Autofill / Passkeys Ready`;
+        autofillPill.innerHTML = `<span class="status-dot active"></span> Autofill Passkeys Ready`;
       } else {
         autofillPill.innerHTML = `<span class="status-dot warning"></span> Autofill Unavailable`;
       }
@@ -35,6 +36,36 @@ async function initWebAuthnSupportCheck() {
     }
   } else {
     autofillPill.innerHTML = `<span class="status-dot warning"></span> Autofill Unsupported`;
+  }
+}
+
+async function loadClientCapabilities() {
+  const grid = document.getElementById('capabilities-grid');
+  if (!grid) return;
+
+  if (window.PublicKeyCredential && PublicKeyCredential.getClientCapabilities) {
+    try {
+      const caps = await PublicKeyCredential.getClientCapabilities();
+      grid.innerHTML = Object.entries(caps).map(([cap, val]) => `
+        <div class="cap-card">
+          <span class="cap-name">${escapeHtml(cap)}</span>
+          <span class="cap-val ${val ? 'text-emerald' : 'text-danger'}">${val ? '✓ Supported' : '✗ Unsupported'}</span>
+        </div>
+      `).join('');
+    } catch (err) {
+      grid.innerHTML = `<div class="empty-state">Error querying getClientCapabilities(): ${err.message}</div>`;
+    }
+  } else {
+    grid.innerHTML = `
+      <div class="cap-card">
+        <span class="cap-name">conditionalMediation</span>
+        <span class="cap-val text-cyan">${window.PublicKeyCredential && PublicKeyCredential.isConditionalMediationAvailable ? 'Supported' : 'Unsupported'}</span>
+      </div>
+      <div class="cap-card">
+        <span class="cap-name">getClientCapabilities API</span>
+        <span class="cap-val text-dim">Browser pending L3 update</span>
+      </div>
+    `;
   }
 }
 
@@ -82,24 +113,30 @@ function setAuthMode(mode) {
 }
 
 // -------------------------------------------------------------
-// 3. REGISTRATION CEREMONY
+// 3. REGISTRATION CEREMONY (L3)
 // -------------------------------------------------------------
 async function handleRegister(e) {
   e.preventDefault();
   const username = document.getElementById('reg-username').value.trim();
   const deviceName = document.getElementById('reg-devicename').value.trim() || 'My Passkey';
+  const authenticatorAttachment = document.getElementById('reg-attachment').value || undefined;
+  const userVerification = document.getElementById('reg-uv').value || 'preferred';
 
   if (!username) return showAlert('Username is required for registration', 'error');
 
   try {
     updateStepper(1);
-    showAlert('Requesting registration options from Relying Party...', 'info');
+    showAlert('Requesting WebAuthn Level 3 registration options from RP server...', 'info');
 
-    // Step 1: Request options from server
+    // Step 1: Request options from RP server
     const optionsRes = await fetch('/api/register/options', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username })
+      body: JSON.stringify({ 
+        username,
+        authenticatorAttachment,
+        userVerification
+      })
     });
     const optionsData = await optionsRes.json();
 
@@ -108,8 +145,7 @@ async function handleRegister(e) {
     logInspectorOptions(optionsData.options);
     updateStepper(2);
 
-    // Step 2: Trigger WebAuthn API on browser
-    showAlert('Touch fingerprint sensor or insert security key...', 'info');
+    showAlert('Touch biometric sensor or insert security key...', 'info');
     
     let registrationResponse;
     if (window.SimpleWebAuthnBrowser) {
@@ -124,8 +160,7 @@ async function handleRegister(e) {
     decodeAndInspectResponse(registrationResponse, 'registration');
     updateStepper(3);
 
-    // Step 3: Verify response on RP server
-    showAlert('Verifying passkey signature on RP server...', 'info');
+    showAlert('Verifying passkey attestation signature on RP server...', 'info');
     const verifyRes = await fetch('/api/register/verify', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -138,7 +173,8 @@ async function handleRegister(e) {
     const verifyData = await verifyRes.json();
 
     if (verifyData.verified) {
-      showAlert(`Passkey successfully registered for "${username}"!`, 'success');
+      const isSynced = verifyData.credential.backedUp ? 'Synced Passkey' : 'Hardware Token';
+      showAlert(`WebAuthn L3 Passkey successfully registered for "${username}"! Type: ${isSynced}`, 'success');
       await checkActiveSession();
       switchToTab('dashboard-tab');
     } else {
@@ -152,20 +188,21 @@ async function handleRegister(e) {
 }
 
 // -------------------------------------------------------------
-// 4. AUTHENTICATION CEREMONY (SIGN IN)
+// 4. AUTHENTICATION CEREMONY (L3 SIGN IN)
 // -------------------------------------------------------------
 async function handleLogin(e) {
   if (e) e.preventDefault();
   const username = document.getElementById('login-username').value.trim();
+  const userVerification = document.getElementById('login-uv').value || 'preferred';
 
   try {
     updateStepper(1);
-    showAlert('Fetching sign-in challenge from server...', 'info');
+    showAlert('Fetching WebAuthn L3 sign-in challenge from server...', 'info');
 
     const optionsRes = await fetch('/api/login/options', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username })
+      body: JSON.stringify({ username, userVerification })
     });
     const optionsData = await optionsRes.json();
 
@@ -201,7 +238,8 @@ async function handleLogin(e) {
     const verifyData = await verifyRes.json();
 
     if (verifyData.verified) {
-      showAlert(`Welcome back, ${verifyData.user.username}! Signed in with Passkey. Counter updated: ${verifyData.newCounter}`, 'success');
+      const syncText = verifyData.credentialBackedUp ? 'Synced Passkey' : 'Device Credential';
+      showAlert(`Welcome back, ${verifyData.user.username}! Signed in via ${syncText}. Sign counter: ${verifyData.newCounter}`, 'success');
       await checkActiveSession();
     } else {
       throw new Error(verifyData.error || 'Authentication signature verification failed');
@@ -213,13 +251,11 @@ async function handleLogin(e) {
   }
 }
 
-// 1-Click Discoverable Credential Login
 async function handlePasskeyLogin() {
   document.getElementById('login-username').value = '';
   await handleLogin();
 }
 
-// Setup Passkey Conditional UI / Autofill
 async function setupPasskeyAutofill() {
   if (!window.PublicKeyCredential || !PublicKeyCredential.isConditionalMediationAvailable) return;
   
@@ -227,7 +263,6 @@ async function setupPasskeyAutofill() {
     const isCMA = await PublicKeyCredential.isConditionalMediationAvailable();
     if (!isCMA) return;
 
-    // Fetch options with no username filter
     const optionsRes = await fetch('/api/login/options', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -258,12 +293,12 @@ async function setupPasskeyAutofill() {
       }
     }
   } catch (e) {
-    // Conditional mediation standardly cancels if user types manually
+    // Expected when user cancels autofill
   }
 }
 
 // -------------------------------------------------------------
-// 5. USER SESSION & PASSKEY MANAGEMENT
+// 5. SESSION & INVENTORY MANAGEMENT
 // -------------------------------------------------------------
 async function checkActiveSession() {
   try {
@@ -302,34 +337,41 @@ function renderPasskeyInventory(credentials) {
   if (!credentials || credentials.length === 0) {
     container.innerHTML = `
       <div class="empty-state">
-        <p>No passkeys registered for this account yet. Click "Add Passkey" or create an account to get started.</p>
+        <p>No passkeys registered for this account yet. Click "+ Add Passkey" or create an account to get started.</p>
       </div>
     `;
     return;
   }
 
-  container.innerHTML = credentials.map(c => `
-    <div class="cred-card">
-      <div>
-        <div class="cred-header">
-          <span class="cred-title">🔑 ${escapeHtml(c.name || 'Passkey')}</span>
-          <span class="badge">${c.deviceType || 'singleDevice'}</span>
+  container.innerHTML = credentials.map(c => {
+    const isSynced = c.backedUp || c.deviceType === 'multiDevice';
+    const passkeyTypeLabel = isSynced ? '☁️ Synced Passkey' : '🛡️ Hardware Token';
+
+    return `
+      <div class="cred-card">
+        <div>
+          <div class="cred-header">
+            <span class="cred-title">${escapeHtml(c.name || 'Passkey')}</span>
+            <span class="badge">${passkeyTypeLabel}</span>
+          </div>
+          <div class="cred-id">Credential ID: ${c.id.substring(0, 24)}...</div>
         </div>
-        <div class="cred-id">ID: ${c.id.substring(0, 24)}...</div>
-      </div>
 
-      <div class="cred-meta">
-        <div><strong>Sign Counter:</strong> ${c.counter} updates</div>
-        <div><strong>Transports:</strong> ${c.transports ? c.transports.join(', ') : 'internal/usb'}</div>
-        <div><strong>Created:</strong> ${new Date(c.createdAt).toLocaleDateString()}</div>
-      </div>
+        <div class="cred-meta">
+          <div><strong>L3 Backup Sync State (BS):</strong> ${c.backedUp ? 'Backed Up (Cloud Synced)' : 'Single Device Only'}</div>
+          <div><strong>L3 Device Type:</strong> ${c.deviceType || 'multiDevice'}</div>
+          <div><strong>Resident Key (Passkey):</strong> ${c.isResidentKey !== undefined ? (c.isResidentKey ? 'Yes' : 'No') : 'Yes'}</div>
+          <div><strong>Sign Counter:</strong> ${c.counter} updates</div>
+          <div><strong>Transports:</strong> ${c.transports ? c.transports.join(', ') : 'internal/usb'}</div>
+          <div><strong>Registered:</strong> ${new Date(c.createdAt).toLocaleDateString()}</div>
+        </div>
 
-      <div style="display: flex; gap: 0.5rem; margin-top: 0.5rem;">
-        <button class="btn btn-sm btn-secondary" style="flex: 1" onclick="testCredentialAuth('${escapeHtml(c.id)}')">Test Assertion</button>
-        <button class="btn btn-sm btn-outline-danger" onclick="deletePasskey('${c.id}')">Delete</button>
+        <div style="display: flex; gap: 0.5rem; margin-top: 0.5rem;">
+          <button class="btn btn-sm btn-outline-danger" style="flex: 1" onclick="deletePasskey('${c.id}')">Delete Passkey</button>
+        </div>
       </div>
-    </div>
-  `).join('');
+    `;
+  }).join('');
 }
 
 async function showAddPasskeyModal() {
@@ -382,7 +424,7 @@ async function resetDatabase() {
 }
 
 // -------------------------------------------------------------
-// 6. PROTOCOL CEREMONY INSPECTOR & DECODER
+// 6. PROTOCOL INSPECTOR & L3 DECODER
 // -------------------------------------------------------------
 function updateStepper(stepNum) {
   const b1 = document.getElementById('step-1-badge');
@@ -406,7 +448,9 @@ function logInspectorResponse(response) {
 
 function decodeAndInspectResponse(response, ceremonyType) {
   try {
-    const decodedObj = {};
+    const decodedObj = {
+      specVersion: "WebAuthn Level 3 (W3C Recommendation)"
+    };
 
     // Decode clientDataJSON
     if (response.response && response.response.clientDataJSON) {
@@ -414,21 +458,28 @@ function decodeAndInspectResponse(response, ceremonyType) {
       decodedObj.clientDataJSON_Decoded = JSON.parse(rawClientData);
     }
 
-    // Decode authenticatorData flags (for authentication)
+    // Decode authenticatorData Level 3 flags
     if (response.response && response.response.authenticatorData) {
       const authDataBytes = base64urlToUint8Array(response.response.authenticatorData);
-      const flagsByte = authDataBytes[32]; // Byte index 32 contains flags
-      decodedObj.authenticatorData_Flags = {
-        UserPresence_UP: Boolean(flagsByte & 0x01),
-        UserVerification_UV: Boolean(flagsByte & 0x04),
-        AttestedCredentialData_AT: Boolean(flagsByte & 0x40),
-        ExtensionData_ED: Boolean(flagsByte & 0x80),
+      const flagsByte = authDataBytes[32]; // Byte 32 = flags byte
+
+      decodedObj.authenticatorData_L3Flags = {
+        UserPresence_UP: Boolean(flagsByte & 0x01), // Bit 0
+        UserVerification_UV: Boolean(flagsByte & 0x04), // Bit 2
+        BackupEligibility_BE_L3: Boolean(flagsByte & 0x08), // Bit 3 (WebAuthn L3)
+        BackupState_BS_L3: Boolean(flagsByte & 0x10), // Bit 4 (WebAuthn L3)
+        AttestedCredentialData_AT: Boolean(flagsByte & 0x40), // Bit 6
+        ExtensionData_ED: Boolean(flagsByte & 0x80), // Bit 7
         RawFlagsByte: `0b${flagsByte.toString(2).padStart(8, '0')}`
       };
       
-      // Extract sign counter
       const view = new DataView(authDataBytes.buffer, authDataBytes.byteOffset, authDataBytes.byteLength);
-      decodedObj.authenticatorData_SignCounter = view.getUint32(33, false); // Big endian 32-bit uint
+      decodedObj.authenticatorData_SignCounter = view.getUint32(33, false);
+    }
+
+    // Client Extensions (credProps L3)
+    if (response.clientExtensionResults) {
+      decodedObj.clientExtensionResults_L3 = response.clientExtensionResults;
     }
 
     decodedObj.ceremony = ceremonyType;
@@ -443,11 +494,10 @@ function decodeAndInspectResponse(response, ceremonyType) {
 function clearInspectorLogs() {
   document.getElementById('json-options').innerText = '// Trigger a WebAuthn ceremony to view server options payload...';
   document.getElementById('json-response').innerText = '// Response from navigator.credentials.create() or get()...';
-  document.getElementById('json-decoded').innerText = '// Decoded breakdown of clientDataJSON (Origin, Challenge) and authData flags...';
+  document.getElementById('json-decoded').innerText = '// Decoded breakdown of clientDataJSON, authData L3 bit flags (BE, BS), and credProps extension...';
   updateStepper(0);
 }
 
-// Utility Functions
 function showAlert(message, type = 'info') {
   const banner = document.getElementById('alert-banner');
   const msgEl = document.getElementById('alert-message');

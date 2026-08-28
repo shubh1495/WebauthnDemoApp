@@ -38,7 +38,6 @@ body {
   overflow-x: hidden;
 }
 
-/* Background Effects */
 .bg-effects {
   position: fixed;
   inset: 0;
@@ -86,7 +85,6 @@ body {
   100% { transform: translate(60px, 40px) scale(1.1); }
 }
 
-/* Layout Container */
 .container {
   max-width: 1120px;
   margin: 0 auto;
@@ -95,7 +93,6 @@ body {
   z-index: 1;
 }
 
-/* App Header */
 .app-header {
   display: flex;
   justify-content: space-between;
@@ -132,6 +129,18 @@ h1 {
   background: linear-gradient(135deg, #ffffff 30%, var(--text-muted));
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
+}
+
+.l3-badge {
+  background: linear-gradient(135deg, rgba(0, 242, 254, 0.2), rgba(16, 185, 129, 0.2));
+  border: 1px solid rgba(0, 242, 254, 0.4);
+  color: var(--primary-cyan);
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
 }
 
 .subtitle {
@@ -177,7 +186,6 @@ h1 {
   background: var(--status-rose);
 }
 
-/* Tabs Navigation */
 .nav-tabs {
   display: flex;
   gap: 0.5rem;
@@ -186,10 +194,12 @@ h1 {
   border-radius: 14px;
   border: 1px solid var(--border-glass);
   margin-bottom: 1.75rem;
+  flex-wrap: wrap;
 }
 
 .nav-btn {
   flex: 1;
+  min-width: 140px;
   background: transparent;
   border: none;
   color: var(--text-muted);
@@ -227,7 +237,6 @@ h1 {
   border-radius: 999px;
 }
 
-/* Cards & Layout */
 .grid-2col {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -271,7 +280,6 @@ h1 {
   align-items: center;
 }
 
-/* Segmented Control Switcher */
 .segmented-control {
   display: flex;
   background: rgba(0, 0, 0, 0.3);
@@ -299,7 +307,6 @@ h1 {
   color: #fff;
 }
 
-/* Forms & Inputs */
 .form-group {
   margin-bottom: 1.25rem;
 }
@@ -312,7 +319,7 @@ label {
   margin-bottom: 0.5rem;
 }
 
-input[type="text"] {
+input[type="text"], .select-input {
   width: 100%;
   background: rgba(0, 0, 0, 0.3);
   border: 1px solid var(--border-glass);
@@ -325,7 +332,12 @@ input[type="text"] {
   transition: all 0.2s ease;
 }
 
-input[type="text"]:focus {
+select.select-input option {
+  background: #121829;
+  color: #fff;
+}
+
+input[type="text"]:focus, .select-input:focus {
   border-color: var(--primary-cyan);
   box-shadow: 0 0 0 3px rgba(0, 242, 254, 0.15);
 }
@@ -337,7 +349,21 @@ input[type="text"]:focus {
   display: block;
 }
 
-/* Buttons */
+.l3-config-box {
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px dashed var(--border-glass);
+  border-radius: 12px;
+  padding: 0.75rem 1rem;
+  margin-top: 1rem;
+}
+
+.l3-config-box summary {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--primary-cyan);
+  cursor: pointer;
+}
+
 .btn {
   display: inline-flex;
   align-items: center;
@@ -413,7 +439,6 @@ input[type="text"]:focus {
   gap: 0.75rem;
 }
 
-/* Informational Card Content */
 .info-hero {
   text-align: center;
   padding: 1.5rem 1rem;
@@ -461,10 +486,10 @@ input[type="text"]:focus {
 .text-violet { color: var(--accent-violet); }
 .text-emerald { color: var(--status-emerald); }
 .text-danger { color: var(--status-rose); }
+.mt-2 { margin-top: 0.5rem; }
 .mt-4 { margin-top: 1rem; }
 .mb-4 { margin-bottom: 1rem; }
 
-/* Active Session Card */
 .user-profile-box {
   display: flex;
   align-items: center;
@@ -525,7 +550,6 @@ input[type="text"]:focus {
   color: var(--text-dim);
 }
 
-/* Credentials Grid */
 .credentials-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
@@ -574,7 +598,33 @@ input[type="text"]:focus {
   gap: 0.3rem;
 }
 
-/* Protocol Inspector Stepper & Code Blocks */
+.capabilities-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 1rem;
+}
+
+.cap-card {
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid var(--border-glass);
+  border-radius: 12px;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.cap-name {
+  font-family: var(--font-code);
+  font-size: 0.85rem;
+  color: var(--primary-cyan);
+}
+
+.cap-val {
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
 .ceremony-stepper {
   display: flex;
   align-items: center;
@@ -667,7 +717,6 @@ input[type="text"]:focus {
   word-break: break-word;
 }
 
-/* Tabs Toggle Visibility */
 .tab-pane {
   display: none;
 }
@@ -680,7 +729,6 @@ input[type="text"]:focus {
   display: none !important;
 }
 
-/* Alert Banner */
 .alert-banner {
   padding: 0.85rem 1.25rem;
   border-radius: 12px;
@@ -712,7 +760,6 @@ input[type="text"]:focus {
   cursor: pointer;
 }
 
-/* Footer */
 .app-footer {
   margin-top: 3rem;
   padding-top: 1.5rem;

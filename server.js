@@ -19,7 +19,7 @@ app.use(express.json());
 app.use(cors());
 app.use(cookieParser());
 app.use(session({
-  secret: 'webauthn-secret-key-demo-2026',
+  secret: 'webauthn-l3-secret-key-demo-2026',
   resave: false,
   saveUninitialized: true,
   cookie: { secure: false, maxAge: 24 * 60 * 60 * 1000 }
@@ -29,7 +29,6 @@ app.use(express.static(path.join(__dirname, 'public')));
 app.use('/node_modules', express.static(path.join(__dirname, 'node_modules')));
 
 // In-memory Database
-// users: { [username]: { id: string, username: string, currentChallenge?: string, credentials: [...] } }
 const db = {
   users: {}
 };
@@ -46,48 +45,55 @@ function getUser(username) {
 }
 
 // -------------------------------------------------------------
-// 1. REGISTRATION ENDPOINTS
+// 1. REGISTRATION ENDPOINTS (WebAuthn Level 3 Specs)
 // -------------------------------------------------------------
 
-// Step 1: Generate Registration Options
 app.post('/api/register/options', async (req, res) => {
   try {
-    const { username } = req.body;
+    const { username, authenticatorAttachment, userVerification, hints } = req.body;
     if (!username) {
       return res.status(400).json({ error: 'Username is required' });
     }
 
     const user = getUser(username);
 
+    // WebAuthn Level 3 Registration Options Configuration
     const options = await generateRegistrationOptions({
-      rpName: 'WebAuthn Test App',
+      rpName: 'WebAuthn L3 Test App',
       rpID: RP_ID,
       userID: new Uint8Array(Buffer.from(user.id)),
       userName: user.username,
       userDisplayName: user.username,
+      // Exclude existing credentials to prevent double registration
       excludeCredentials: user.credentials.map(cred => ({
         id: cred.id,
         type: 'public-key',
         transports: cred.transports,
       })),
       authenticatorSelection: {
-        residentKey: 'preferred',
-        userVerification: 'preferred',
+        residentKey: 'preferred', // Level 3 Passkey requirement ('discouraged' | 'preferred' | 'required')
+        userVerification: userVerification || 'preferred',
+        authenticatorAttachment: authenticatorAttachment || undefined, // 'platform' | 'cross-platform'
       },
       attestationType: 'none',
+      // WebAuthn Level 3 Extensions
+      extensions: {
+        credProps: true, // Returns rk boolean confirming Passkey storage
+      },
+      // WebAuthn Level 3 Hints
+      hints: hints && hints.length > 0 ? hints : undefined, // ['security-key', 'client-device', 'hybrid']
     });
 
     req.session.currentChallenge = options.challenge;
     req.session.username = username;
 
-    res.json({ options });
+    res.json({ options, specLevel: 'WebAuthn Level 3 (W3C Recommendation)' });
   } catch (error) {
     console.error('Error generating registration options:', error);
     res.status(500).json({ error: error.message });
   }
 });
 
-// Step 2: Verify Registration Response
 app.post('/api/register/verify', async (req, res) => {
   try {
     const { username, response, deviceName } = req.body;
@@ -112,13 +118,18 @@ app.post('/api/register/verify', async (req, res) => {
       const { credential, credentialDeviceType, credentialBackedUp } = registrationInfo;
       const { id, publicKey, counter, transports } = credential;
 
+      // Extract WebAuthn L3 credProps extension result if present
+      const clientExtensionResults = response.clientExtensionResults || {};
+      const isResidentKeyCreated = clientExtensionResults.credProps ? clientExtensionResults.credProps.rk : undefined;
+
       const newCredential = {
         id,
         publicKey: Buffer.from(publicKey).toString('base64url'),
         counter,
         transports: transports || [],
-        deviceType: credentialDeviceType,
-        backedUp: credentialBackedUp,
+        deviceType: credentialDeviceType, // 'singleDevice' | 'multiDevice' (Level 3)
+        backedUp: credentialBackedUp, // boolean (Level 3 Sync State)
+        isResidentKey: isResidentKeyCreated,
         name: deviceName || `Passkey (${new Date().toLocaleDateString()})`,
         createdAt: new Date().toISOString(),
       };
@@ -129,8 +140,10 @@ app.post('/api/register/verify', async (req, res) => {
 
       res.json({
         verified: true,
+        specLevel: 'WebAuthn Level 3 Verified',
         user: { username: user.username, credentialsCount: user.credentials.length },
-        credential: newCredential
+        credential: newCredential,
+        extensionResults: clientExtensionResults
       });
     } else {
       res.status(400).json({ verified: false, error: 'Registration verification failed' });
@@ -142,13 +155,12 @@ app.post('/api/register/verify', async (req, res) => {
 });
 
 // -------------------------------------------------------------
-// 2. AUTHENTICATION (SIGN-IN) ENDPOINTS
+// 2. AUTHENTICATION ENDPOINTS (WebAuthn Level 3 Specs)
 // -------------------------------------------------------------
 
-// Step 1: Generate Authentication Options
 app.post('/api/login/options', async (req, res) => {
   try {
-    const { username } = req.body;
+    const { username, userVerification, hints } = req.body;
 
     let allowCredentials;
 
@@ -167,20 +179,20 @@ app.post('/api/login/options', async (req, res) => {
     const options = await generateAuthenticationOptions({
       rpID: RP_ID,
       allowCredentials,
-      userVerification: 'preferred',
+      userVerification: userVerification || 'preferred',
+      hints: hints && hints.length > 0 ? hints : undefined,
     });
 
     req.session.currentChallenge = options.challenge;
     if (username) req.session.authUsername = username;
 
-    res.json({ options });
+    res.json({ options, specLevel: 'WebAuthn Level 3 (W3C Recommendation)' });
   } catch (error) {
     console.error('Error generating login options:', error);
     res.status(500).json({ error: error.message });
   }
 });
 
-// Step 2: Verify Authentication Response
 app.post('/api/login/verify', async (req, res) => {
   try {
     const { username, response } = req.body;
@@ -197,7 +209,7 @@ app.post('/api/login/verify', async (req, res) => {
       matchingUser = db.users[username];
       matchingCred = matchingUser.credentials.find(c => c.id === response.id);
     } else {
-      // Passkey / Discoverable Credential
+      // Passkey / Discoverable Credential Search
       for (const u of Object.values(db.users)) {
         const found = u.credentials.find(c => c.id === response.id);
         if (found) {
@@ -235,12 +247,15 @@ app.post('/api/login/verify', async (req, res) => {
 
       res.json({
         verified: true,
+        specLevel: 'WebAuthn Level 3 Assertion Verified',
         user: {
           username: matchingUser.username,
           credentialsCount: matchingUser.credentials.length,
           lastLogin: new Date().toISOString()
         },
-        newCounter: matchingCred.counter
+        newCounter: matchingCred.counter,
+        credentialDeviceType: authenticationInfo.credentialDeviceType, // L3 Device Type
+        credentialBackedUp: authenticationInfo.credentialBackedUp, // L3 Backup State
       });
     } else {
       res.status(400).json({ verified: false, error: 'Authentication verification failed' });
@@ -252,7 +267,7 @@ app.post('/api/login/verify', async (req, res) => {
 });
 
 // -------------------------------------------------------------
-// 3. USER MANAGEMENT & UTILITY ENDPOINTS
+// 3. USER MANAGEMENT & CAPABILITIES ENDPOINTS
 // -------------------------------------------------------------
 
 app.get('/api/user/me', (req, res) => {
@@ -273,6 +288,7 @@ app.get('/api/user/me', (req, res) => {
         counter: c.counter,
         deviceType: c.deviceType,
         backedUp: c.backedUp,
+        isResidentKey: c.isResidentKey,
         createdAt: c.createdAt,
         transports: c.transports
       }))
@@ -296,14 +312,6 @@ app.delete('/api/credentials/:id', (req, res) => {
   res.json({ success: true, credentialsCount: user.credentials.length });
 });
 
-app.get('/api/users/list', (req, res) => {
-  const summary = Object.values(db.users).map(u => ({
-    username: u.username,
-    credentialsCount: u.credentials.length,
-  }));
-  res.json({ users: summary });
-});
-
 app.post('/api/debug/reset', (req, res) => {
   db.users = {};
   req.session.destroy();
@@ -312,7 +320,7 @@ app.post('/api/debug/reset', (req, res) => {
 
 app.listen(PORT, () => {
   console.log(`====================================================`);
-  console.log(` WebAuthn Test App Server running at:`);
+  console.log(` WebAuthn Level 3 Server running at:`);
   console.log(` ${EXPECTED_ORIGIN}`);
   console.log(`====================================================`);
 });
