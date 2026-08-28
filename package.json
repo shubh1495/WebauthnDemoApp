@@ -1,11 +1,12 @@
 {
   "name": "webauthn-demo-app",
   "version": "1.0.0",
-  "description": "Interactive WebAuthn & Passkey testing application",
+  "description": "Interactive WebAuthn Level 3 & Passkey testing application",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "dev": "node server.js"
+    "dev": "node server.js",
+    "test": "node --test test/*.test.js"
   },
   "dependencies": {
     "@simplewebauthn/browser": "^10.0.0",
